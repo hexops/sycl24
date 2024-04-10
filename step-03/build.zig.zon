@@ -1,0 +1,23 @@
+.{
+    .name = "mygame",
+    .version = "0.0.0",
+    .dependencies = .{
+        .mach = .{
+            .url = "https://pkg.machengine.org/mach/d1c3d267100bd63ded47f17912b0c1ac715175d1.tar.gz",
+            .hash = "12204b7e14d332f3c031cfb599a4212a010cb0718433fd83c18ee0a395282921ca15",
+        },
+    },
+    .paths = .{
+        // This makes *all* files, recursively, included in this package. It is generally
+        // better to explicitly list the files and directories instead, to insure that
+        // fetching from tarballs, file system paths, and version control all result
+        // in the same contents hash.
+        "",
+        // For example...
+        //"build.zig",
+        //"build.zig.zon",
+        //"src",
+        //"LICENSE",
+        //"README.md",
+    },
+}
