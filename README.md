@@ -19,10 +19,40 @@ In your build.zig file add the `mach` dependency:
 ```
 pub fn build(b: *std.Build) void {
     // ...
+
+    // Add Mach dependency
     const mach_dep = b.dependency("mach", .{
         .target = target,
         .optimize = optimize,
     });
     exe.root_module.addImport("mach", mach_dep.module("mach"));
+    @import("mach").link(mach_dep.builder, exe, &exe.root_module);
 }
 ```
+
+## Step 02
+
+Modify `src/main.zig` to look like this, which gets us a window:
+
+```
+const std = @import("std");
+const mach = @import("mach");
+
+// The global list of Mach modules registered for use in our application.
+pub const modules = .{
+    mach.Core,
+};
+
+pub const GPUInterface = mach.core.wgpu.dawn.Interface;
+
+pub fn main() !void {
+    // Initialize mach.Core
+    try mach.core.initModule();
+
+    // Main loop
+    while (try mach.core.tick()) {}
+}
+```
+
+TODO: remove the need for `pub const GPUInterface = mach.core.wgpu.dawn.Interface;`
+
