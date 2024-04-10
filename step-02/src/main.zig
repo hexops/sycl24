@@ -6,8 +6,6 @@ pub const modules = .{
     mach.Core,
 };
 
-pub const GPUInterface = mach.core.wgpu.dawn.Interface;
-
 pub fn main() !void {
     // Initialize mach.Core
     try mach.core.initModule();

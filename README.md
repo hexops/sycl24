@@ -43,8 +43,6 @@ pub const modules = .{
     mach.Core,
 };
 
-pub const GPUInterface = mach.core.wgpu.dawn.Interface;
-
 pub fn main() !void {
     // Initialize mach.Core
     try mach.core.initModule();
@@ -53,6 +51,3 @@ pub fn main() !void {
     while (try mach.core.tick()) {}
 }
 ```
-
-TODO: remove the need for `pub const GPUInterface = mach.core.wgpu.dawn.Interface;`
-
