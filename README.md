@@ -14,7 +14,7 @@ zig fetch --save https://pkg.machengine.org/mach/3583e1754f9025edf74db868cbf5eda
 
 In your build.zig file add the `mach` dependency:
 
-```rs
+```zig
 pub fn build(b: *std.Build) void {
     // ...
 
@@ -38,7 +38,7 @@ zig build run
 
 Modify `src/main.zig` to use the `mach.Core` module and your own `Game` module:
 
-```rs
+```zig
 const std = @import("std");
 const mach = @import("mach");
 
@@ -61,7 +61,7 @@ pub fn main() !void {
 
 Create the `src/Game.zig` module:
 
-```rs
+```zig
 const std = @import("std");
 const mach = @import("mach");
 const gpu = mach.gpu;
@@ -107,7 +107,7 @@ zig build run
 
 Create `src/shader.wgsl`:
 
-```rs
+```zig
 @vertex fn vertex_main(
     @builtin(vertex_index) VertexIndex : u32
 ) -> @builtin(position) vec4<f32> {
@@ -128,7 +128,7 @@ See `step-03/src/shader.zig` for some code comments.
 
 In `src/Game.zig` register a listener for the global init event:
 
-```rs
+```zig
  pub const global_events = .{
 +    .init = .{ .handler = init },
      .tick = .{ .handler = tick },
@@ -137,13 +137,13 @@ In `src/Game.zig` register a listener for the global init event:
 
 Below that, add some state to our module as a struct field:
 
-```rs
+```zig
 pipeline: *gpu.RenderPipeline,
 ```
 
 Then create the `init` event handler, and add some boilerplate to load a shader module and create a render pipeline:
 
-```rs
+```zig
 fn init(game: *Mod) !void {
     // Create our shader module
     const shader_module = mach.core.device.createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
@@ -184,14 +184,14 @@ fn init(game: *Mod) !void {
 
 Modify your `pub fn tick` to have the `Game` module injected as a parameter:
 
-```rs
+```zig
 -pub fn tick(core: *mach.Core.Mod) !void {
 +pub fn tick(core: *mach.Core.Mod, game: *Mod) !void {
 ```
 
 Then replace `// TODO: render stuff!` with some rendering code:
 
-```rs
+```zig
     // Create a command encoder
     const encoder = mach.core.device.createCommandEncoder(null);
     defer encoder.release();
