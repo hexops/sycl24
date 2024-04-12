@@ -1,0 +1,15 @@
+.{
+    .name = "mygame",
+    .version = "0.0.0",
+    .dependencies = .{
+        .mach = .{
+            .url = "https://pkg.machengine.org/mach/d1c3d267100bd63ded47f17912b0c1ac715175d1.tar.gz",
+            .hash = "12204b7e14d332f3c031cfb599a4212a010cb0718433fd83c18ee0a395282921ca15",
+        },
+        .imgui = .{
+            .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.90.5.tar.gz",
+            .hash = "122067ea478c45f3c4a01b49dfb39412cd5624fde860021e977455b5327252cc38fa",
+        },
+    },
+    .paths = .{""},
+}
