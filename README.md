@@ -1,3 +1,9 @@
+# Install / download software
+
+* [VLC media player](https://www.videolan.org/) - or something that can play `.opus` audio files.
+* Zig `<TODO specific version>`
+* Zig editor extension, configure it to use ZLS `<TODO specific version>`
+
 # Step 01: create your Zig project
 
 ```
@@ -9,7 +15,7 @@ Delete the generated `src/root.zig` and `lib` steps in build.zig.
 Add Mach:
 
 ```
-zig fetch --save https://pkg.machengine.org/mach/3583e1754f9025edf74db868cbf5eda4bb2176f2.tar.gz
+zig fetch --save https://pkg.machengine.org/mach/205a1f33db0efe40a218e793937e7b686ac117dc.tar.gz
 ```
 
 In your build.zig file add the `mach` dependency:
@@ -24,7 +30,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("mach", mach_dep.module("mach"));
-    @import("mach").link(mach_dep.builder, exe, &exe.root_module);
+    @import("mach").link(mach_dep.builder, exe);
 }
 ```
 
@@ -39,15 +45,12 @@ zig build run
 Modify `src/main.zig` to use the `mach.Core` module and your own `Game` module:
 
 ```zig
-const std = @import("std");
 const mach = @import("mach");
-
-const Game = @import("Game.zig");
 
 // The global list of Mach modules registered for use in our application.
 pub const modules = .{
     mach.Core,
-    Game,
+    @import("App.zig"),
 };
 
 pub fn main() !void {
@@ -59,29 +62,44 @@ pub fn main() !void {
 }
 ```
 
-Create the `src/Game.zig` module:
+Create the `src/App.zig` module:
 
 ```zig
 const std = @import("std");
 const mach = @import("mach");
 const gpu = mach.gpu;
 
-// Globally unique name of our module
-pub const name = .game;
-
+pub const name = .app;
 pub const Mod = mach.Mod(@This());
 
-pub const global_events = .{
-    // Listen for global init and tick events
+pub const systems = .{
+    .init = .{ .handler = init },
+    .after_init = .{ .handler = afterInit },
+    .deinit = .{ .handler = deinit },
     .tick = .{ .handler = tick },
 };
 
-pub fn tick(core: *mach.Core.Mod) !void {
-    // Poll for input events
+pub fn deinit(core: *mach.Core.Mod) void {
+    core.schedule(.deinit);
+}
+
+fn init(game: *Mod, core: *mach.Core.Mod) !void {
+    core.schedule(.init);
+    game.schedule(.after_init);
+}
+
+fn afterInit(core: *mach.Core.Mod) !void {
+    // TODO: use the GPU to initialize resources
+
+    // Start the loop so we get .tick events
+    core.schedule(.start);
+}
+
+fn tick(core: *mach.Core.Mod) !void {
     var iter = mach.core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
-            .close => core.send(.exit, .{}), // tell mach.Core to exit the app
+            .close => core.schedule(.exit), // Tell mach.Core to exit the app
             else => {},
         }
     }
@@ -90,10 +108,37 @@ pub fn tick(core: *mach.Core.Mod) !void {
     const back_buffer_view = mach.core.swap_chain.getCurrentTextureView().?;
     defer back_buffer_view.release();
 
-    // TODO: render stuff!
+    // Create a command encoder
+    const label = @tagName(name) ++ ".tick";
+    const encoder = core.state().device.createCommandEncoder(&.{ .label = label });
+    defer encoder.release();
 
-    // Present the swapchain
-    mach.core.swap_chain.present();
+    // Begin render pass
+    const sky_blue_background = gpu.Color{ .r = 0.776, .g = 0.988, .b = 1, .a = 1 };
+    const color_attachments = [_]gpu.RenderPassColorAttachment{.{
+        .view = back_buffer_view,
+        .clear_value = sky_blue_background,
+        .load_op = .clear,
+        .store_op = .store,
+    }};
+    const render_pass = encoder.beginRenderPass(&gpu.RenderPassDescriptor.init(.{
+        .label = label,
+        .color_attachments = &color_attachments,
+    }));
+    defer render_pass.release();
+
+    // TODO: Draw things!
+
+    // Finish render pass
+    render_pass.end();
+
+    // Submit our commands to the queue
+    var command = encoder.finish(&.{ .label = label });
+    defer command.release();
+    core.state().queue.submit(&[_]*gpu.CommandBuffer{command});
+
+    // Present the frame
+    core.schedule(.present_frame);
 }
 ```
 
@@ -126,96 +171,129 @@ Create `src/shader.wgsl`:
 
 See `step-03/src/shader.zig` for some code comments.
 
-In `src/Game.zig` register a listener for the global init event:
+We'll modify `src/App.zig` like this:
 
-```zig
- pub const global_events = .{
-+    .init = .{ .handler = init },
-     .tick = .{ .handler = tick },
- };
-```
+```diff
+const std = @import("std");
+const mach = @import("mach");
+const gpu = mach.gpu;
 
-Below that, add some state to our module as a struct field:
+pub const name = .app;
+pub const Mod = mach.Mod(@This());
 
-```zig
-pipeline: *gpu.RenderPipeline,
-```
+pub const systems = .{
+    .init = .{ .handler = init },
+    .after_init = .{ .handler = afterInit },
+    .deinit = .{ .handler = deinit },
+    .tick = .{ .handler = tick },
+};
 
-Then create the `init` event handler, and add some boilerplate to load a shader module and create a render pipeline:
++pipeline: *gpu.RenderPipeline,
 
-```zig
-fn init(game: *Mod) !void {
-    // Create our shader module
-    const shader_module = mach.core.device.createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
-    defer shader_module.release();
-
-    // Blend state describes how rendered colors get blended
-    const blend = gpu.BlendState{};
-
-    // Color target describes e.g. the pixel format of the window we are rendering to.
-    const color_target = gpu.ColorTargetState{
-        .format = mach.core.descriptor.format,
-        .blend = &blend,
-    };
-
-    // Fragment state describes which shader and entrypoint to use for rendering fragments.
-    const fragment = gpu.FragmentState.init(.{
-        .module = shader_module,
-        .entry_point = "frag_main",
-        .targets = &.{color_target},
-    });
-
-    // Create our render pipeline that will ultimately get pixels onto the screen.
-    const pipeline_descriptor = gpu.RenderPipeline.Descriptor{
-        .fragment = &fragment,
-        .vertex = gpu.VertexState{
-            .module = shader_module,
-            .entry_point = "vertex_main",
-        },
-    };
-    const pipeline = mach.core.device.createRenderPipeline(&pipeline_descriptor);
-
-    // Store our render pipeline in our module's state, so we can access it later on.
-    game.init(.{
-        .pipeline = pipeline,
-    });
+-pub fn deinit(core: *mach.Core.Mod) void {
++pub fn deinit(core: *mach.Core.Mod, game: *Mod) void {
++    game.state().pipeline.release();
+    core.schedule(.deinit);
 }
-```
 
-Modify your `pub fn tick` to have the `Game` module injected as a parameter:
+fn init(game: *Mod, core: *mach.Core.Mod) !void {
+    core.schedule(.init);
+    game.schedule(.after_init);
+}
 
-```zig
--pub fn tick(core: *mach.Core.Mod) !void {
-+pub fn tick(core: *mach.Core.Mod, game: *Mod) !void {
-```
+-fn afterInit(core: *mach.Core.Mod) !void {
+-    // TODO: use the GPU to initialize resources
++fn afterInit(game: *Mod, core: *mach.Core.Mod) !void {
++    // Create our shader module
++    const shader_module = core.state().device.createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
++    defer shader_module.release();
 
-Then replace `// TODO: render stuff!` with some rendering code:
++    // Blend state describes how rendered colors get blended
++    const blend = gpu.BlendState{};
 
-```zig
++    // Color target describes e.g. the pixel format of the window we are rendering to.
++    const color_target = gpu.ColorTargetState{
++        .format = core.get(core.state().main_window, .framebuffer_format).?,
++        .blend = &blend,
++    };
+
++    // Fragment state describes which shader and entrypoint to use for rendering fragments.
++    const fragment = gpu.FragmentState.init(.{
++        .module = shader_module,
++        .entry_point = "frag_main",
++        .targets = &.{color_target},
++    });
+
++    // Create our render pipeline that will ultimately get pixels onto the screen.
++    const label = @tagName(name) ++ ".init";
++    const pipeline_descriptor = gpu.RenderPipeline.Descriptor{
++        .label = label,
++        .fragment = &fragment,
++        .vertex = gpu.VertexState{
++            .module = shader_module,
++            .entry_point = "vertex_main",
++        },
++    };
++    const pipeline = core.state().device.createRenderPipeline(&pipeline_descriptor);
+
++    // Store our render pipeline in our module's state, so we can access it later on.
++    game.init(.{
++        .pipeline = pipeline,
++    });
+
+    // Start the loop so we get .tick events
+    core.schedule(.start);
+}
+
+-fn tick(core: *mach.Core.Mod) !void {
++fn tick(core: *mach.Core.Mod, game: *Mod) !void {
+    var iter = mach.core.pollEvents();
+    while (iter.next()) |event| {
+        switch (event) {
+            .close => core.schedule(.exit), // Tell mach.Core to exit the app
+            else => {},
+        }
+    }
+
+    // Grab the back buffer of the swapchain
+    const back_buffer_view = mach.core.swap_chain.getCurrentTextureView().?;
+    defer back_buffer_view.release();
+
     // Create a command encoder
-    const encoder = mach.core.device.createCommandEncoder(null);
+    const label = @tagName(name) ++ ".tick";
+    const encoder = core.state().device.createCommandEncoder(&.{ .label = label });
     defer encoder.release();
 
-    const sky_blue = gpu.Color{ .r = 0.776, .g = 0.988, .b = 1, .a = 1 };
-    const color_attachment = gpu.RenderPassColorAttachment{
+    // Begin render pass
+    const sky_blue_background = gpu.Color{ .r = 0.776, .g = 0.988, .b = 1, .a = 1 };
+    const color_attachments = [_]gpu.RenderPassColorAttachment{.{
         .view = back_buffer_view,
-        .clear_value = sky_blue,
+        .clear_value = sky_blue_background,
         .load_op = .clear,
         .store_op = .store,
-    };
-    const render_pass_info = gpu.RenderPassDescriptor.init(.{
-        .color_attachments = &.{color_attachment},
-    });
-    const pass = encoder.beginRenderPass(&render_pass_info);
-    defer pass.release();
-    pass.setPipeline(game.state().pipeline);
-    pass.draw(3, 1, 0, 0);
-    pass.end();
+    }};
+    const render_pass = encoder.beginRenderPass(&gpu.RenderPassDescriptor.init(.{
+        .label = label,
+        .color_attachments = &color_attachments,
+    }));
+    defer render_pass.release();
 
-    // Submit our encoded commands to the GPU queue
-    var command = encoder.finish(null);
+-    // TODO: Draw things!
++    // Draw
++    render_pass.setPipeline(game.state().pipeline);
++    render_pass.draw(3, 1, 0, 0);
+
+    // Finish render pass
+    render_pass.end();
+
+    // Submit our commands to the queue
+    var command = encoder.finish(&.{ .label = label });
     defer command.release();
-    mach.core.queue.submit(&[_]*gpu.CommandBuffer{command});
+    core.state().queue.submit(&[_]*gpu.CommandBuffer{command});
+
+    // Present the frame
+    core.schedule(.present_frame);
+}
 ```
 
 ```
@@ -223,3 +301,7 @@ zig build run
 ```
 
 <img width="600" alt="image" src="https://github.com/hexops/mach/assets/3173176/b9358256-9365-4dc2-9bab-1c096e7f1eeb">
+
+## Next steps
+
+https://github.com/hexops/mach/tree/main/examples

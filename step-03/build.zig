@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("mach", mach_dep.module("mach"));
-    @import("mach").link(mach_dep.builder, exe, &exe.root_module);
+    @import("mach").link(mach_dep.builder, exe);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
