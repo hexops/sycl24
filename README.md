@@ -1,8 +1,10 @@
 # Install / download software
 
-* [VLC media player](https://www.videolan.org/) - or something that can play `.opus` audio files.
-* Zig `<TODO specific version>`
-* Zig editor extension, configure it to use ZLS `<TODO specific version>`
+* Slides: https://docs.google.com/presentation/d/1DxjcDqrm52-cfqM5M2pbABeGVuQKlW0FUUUtoFvAZfw/edit#slide=id.p
+* Zig version: https://machengine.org/about/nominated-zig/#202430-mach
+* ZLS version: https://github.com/slimsag/zls
+
+Use VLC to play `.opus` audio files
 
 # Step 01: create your Zig project
 
