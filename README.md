@@ -3,6 +3,7 @@
 * Slides: https://docs.google.com/presentation/d/1DxjcDqrm52-cfqM5M2pbABeGVuQKlW0FUUUtoFvAZfw/edit#slide=id.p
 * Zig version: https://machengine.org/about/nominated-zig/#202430-mach
 * ZLS version: https://github.com/slimsag/zls
+* WIP game :) https://github.com/hexops/lordofzero
 
 Use VLC to play `.opus` audio files
 
