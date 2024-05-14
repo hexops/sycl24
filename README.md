@@ -304,11 +304,23 @@ zig build run
 
 <img width="600" alt="image" src="https://github.com/hexops/mach/assets/3173176/b9358256-9365-4dc2-9bab-1c096e7f1eeb">
 
-## Step 04: Imgui briefing
+## Step 04: detour: Imgui
 
 ```
 zig fetch --save https://github.com/slimsag/mach-imgui/archive/9ab7acbd7e3a9cb30fdba11831d725d04377c0df.tar.gz
 ```
+
+## Step 05: rendering a textured quad
+
+Compare with step 3
+
+```
+git diff --no-index ../step-03/src/App.zig ./src/App.zig
+```
+
+## Step 06: higher level: sprite rendering
+
+
 
 ## Next steps
 

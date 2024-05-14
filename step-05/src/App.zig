@@ -92,7 +92,7 @@ fn afterInit(game: *Mod, core: *mach.Core.Mod) !void {
     index_buffer.unmap();
 
     // Create Texture
-    var img = try zigimg.Image.fromMemory(mach.core.allocator, assets.gotta_go_fast_png);
+    var img = try zigimg.Image.fromMemory(mach.core.allocator, @embedFile("assets/gotta-go-fast.png"));
     defer img.deinit();
     const img_size = gpu.Extent3D{
         .width = @as(u32, @intCast(img.width)),
